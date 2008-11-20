@@ -1,0 +1,233 @@
+This is the README file for Ejacs, the JavaScript Interpreter for Emacs.
+
+Ejacs is distributed under the GNU General Public License; see the
+source file comment headers for more information.
+
+What is Ejacs?
+==============
+
+Ejacs is a reasonably complete interpreter for the Ecma-262 specification
+written entirely in Emacs-Lisp.  It runs on GNU Emacs version 22 and higher.
+
+Ejacs provides a minimal interactive console for evaluating JavaScript
+expressions and statements on the fly.  The console also comes with a
+built-in "load" command for loading and evaluating JavaScript files.
+
+Limitations and Caveats
+=======================
+
+Ejacs is basically a toy.  It is regrettably insufficient in several
+important dimensions, including:
+
+Integration
+-----------
+
+Ejacs does not yet provide any integration with Emacs, so in its current
+form it cannot be used to create customizations for Emacs.
+
+It also does not provide a browser environment, so there is almost nothing
+useful you can do with it other than play around with the JavaScript language
+and the Ecma-262 objects and functions.
+
+Performance
+-----------
+
+The parser and evaluator are direct ports of Brendan Eich's Narcissus
+(JavaScript in JavaScript):
+
+    http://mxr.mozilla.org/mozilla/source/js/narcissus/
+
+Narcissus was clearly a proof-of-concept not designed for performance,
+and Ejacs shares its performance issues:
+
+  * the scanner uses simple regexp matching for most of its work
+
+  * the evaluator executes the AST directly; there is no intermediate
+    bytecode representation, so it's quite slow.
+
+Byte-compiling Ejacs can speed it up by a factor of 20 to 40, but even
+when byte compiled it is likely to be unusably slow for any
+significant JavaScript program.
+
+Testing
+-------
+
+The interpreter and its components are not well tested.  In fact there is
+no unit test suite at all.  My goal was to wire up the extensive SpiderMonkey
+unit test and regression test suites, but this work was never completed.
+
+That means there are bugs.  You are welcome to report them, and if I have
+time I may fix them.  I can also incorporate any patches you send me.
+
+Installation Instructions
+=========================
+
+Unpack the source code into a directory.  For this exposition we'll assume
+you've unpacked the code into the directory "~/emacs/js".  To install and
+run the interpreter, add these lines to your .emacs file:
+
+(add-to-list 'load-path "~/emacs/js")  ; change this to the real location!
+(autoload 'js-console "js-console" nil t)
+
+Then you can run
+
+  M-x js-console
+
+to get to the interactive shell.  The non-compiled interpreter is fast
+enough for casual "let's see how it works" use: simple functions,
+expressions and statements.
+
+If you want to make it run faster, you can byte-compile every .el file
+in the directory and then restart emacs.
+
+Restarting the console
+----------------------
+
+The console has occasionally been known to get "confused" and require
+reloading.  When this happens, you can kill the buffer, type
+
+  M-x load-library RET js-console RET
+
+and then run the `js-console' command to get a fresh shell.
+
+Multiple consoles
+-----------------
+
+It is possible to run multiple interpreters simultaneously.  To do this,
+just rename the *js* buffer to something else and run the `js-console'
+command again.
+
+Usage Examples
+==============
+
+Here are some example expressions evaluated at the console:
+
+js> "foobar"[3]
+b
+
+js> (2 + 2) * Math.PI
+12.566370614359172
+
+js> (function() {print('hi there')})()
+hi there
+
+js> var s = "joe.user@gmail.com"
+js> var m = s.match(/@(\w+)\.([a-z]{3})/)
+js> m.toSource()
+["@gmail.com", "gmail", "com"]
+
+js> ['a', 'b', 'c'].reverse()
+c,b,a
+
+There is also a console load() function that takes as an argument the
+path to a JavaScript source file to load and evaluate.  It cannot have
+any dependencies on browser DOM or other non-Ecma-262 host objects.
+
+Compatibility with Ecma-262
+===========================
+
+Aside from bugs, which are no doubt numerous, there are a few known additions,
+omissions and differences from Ecma-262.  These lists are not known to be
+comprehensive.
+
+There is more information about these differences in the comment headers of
+the interpreter source files.
+
+Additions
+---------
+
+This runtime library implements several features not in ECMA-262, including some
+JavaScript 1.5/1.6 features and a few SpiderMonkey extensions.
+
+Extensions implemented:
+ - toSource() method
+ - get/set syntax for getters/setters in object initializers
+ - __defineGetter__, __defineSetter__
+ - __lookupGetter__, __lookupSetter__
+ - __proto__, __parent__
+ - __noSuchMethod__
+ - __defineProperty__ (SpiderMonkey)
+ - array indexing of strings, e.g. "foobar"[3] => 'b'
+ - Array:  every, indexOf, filter, forEach, lastIndexOf, map, some
+
+Omissions and Differences
+-------------------------
+
+#1:  Regular Expressions
+
+The regular expression engine does not support the following features:
+
+   - zero-width positive/negative lookahead assertions
+   - \D, \S or \W (negated classes) in a [...] character class
+
+This is because the regexp engine currently uses Emacs's built-in
+regexp engine, and Emacs's engine does not support these two features.
+
+The regexp engine (jsre.el) is a port of Mozilla Rhino's regexp engine.
+However, currently only the parser is used, for rewriting the regexp into elisp
+regexp syntax.  The evaluator is ported but not yet wired up or tested.
+
+The jsre.el package is designed to function as an independent package, and could
+potentially be used to introduce JavaScript regular expression syntax into Emacs
+Lisp code and applications.
+
+You can see the translated elisp version of a regexp by accessing the
+non-standard '__elisp__' property of a regexp.  For instance:
+
+js> /(\w+)\.[A-Z]{3,4}\S(\d+)/.__elisp__
+\([0-9a-z_A-Z]+\)\.[A-Z]\{3,4\}\S-\([0-9]+\)
+
+#2:  Math functions
+
+The interpreter uses Emacs 64-bit floats to represent numbers, which usually
+yields the same results as math in SpiderMonkey and Rhino.
+
+There are a few functions (notably the signed and unsigned shift operators)
+that have higher precision than is specified by Ecma-262.
+
+Number.prototype.toString() is not fully implemented.
+
+#3: Unicode
+
+There is some Unicode support (for strings, not identifiers), but it has
+been only very lightly spot-checked, and doubtless has many problems.
+
+Relationship to js2-mode
+========================
+
+Ejacs was a precursor to js2-mode.  However, except for a handful of
+shared functions, Ejacs and js2-mode completely different implementations.
+
+js2-mode is a port of Mozilla Rhino's scanner and parser, plus a
+JavaScript editing mode built around the port.  js2-mode's parser is
+much faster and more correct/complete than the parser in this package.
+
+However, js2-mode does not have an evaluator (interpreter).  Long term
+I hope to finish porting Mozilla Rhino's interpreter, and then use it
+to support Emacs customizations in JavaScript.  As of Q4 2008 that
+work is on hold for at least a year, possibly longer.
+
+I am releasing Ejacs in the hope that it may prove interesting and/or
+instructive.  I am no longer actively working on this code base.
+Nonetheless I am happy to accept both patches and bug reports.
+
+Attributions
+============
+
+Ejacs is based heavily on work by Brendan Eich (SpiderMonkey, Narcissus)
+and Norris Boyd (Mozilla Rhino).
+
+The brilliant name "Ejacs" was suggested by Andrew Barry
+(http://www.blogger.com/profile/03748308037329280409), although he
+advocated against its use.
+
+For more information, or patches, please contact the author:
+
+  Steve Yegge (steve.yegge@gmail.com)
+
+Ejacs is dedicated to David Notkin, my compilers professor from my undergrad
+days at the University of Washington.  He instilled in me a lifelong regret
+for not having finished his course.  This regret eventually transformed into
+curiosity about what I'd missed, eventually blossoming into a passion for
+compilers that has shaped my career and made me a better, happier programmer.
+Thanks, Professor Notkin!
