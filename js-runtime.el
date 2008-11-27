@@ -178,7 +178,7 @@ Each time a new context is entered, we dynamically bind this variable
 with `let', creating a context stack that unwinds with the lisp
 execution stack.")
 
-(make-variable-buffer-local 'js-current-context)
+;(make-variable-buffer-local 'js-current-context)
 
 ;;; Number parsing
 
@@ -605,7 +605,7 @@ on OBJ or its prototype chain."
 ;; object away in a thread-local (or in Emacs' case, buffer-local)
 ;; variable and check it on each recursion step.  This is that variable:
 (defvar js-get-base-obj nil)
-(make-variable-buffer-local 'js-get-base-obj)
+;(make-variable-buffer-local 'js-get-base-obj)
 
 (defun js-default--get-- (obj name)
   "Lisp-level [[Get]] implementation for Object, 8.6.2.1.
@@ -1850,7 +1850,7 @@ The first parameter is ignored and can be any value.  FUNC can be
 any symbol whose definition is a normal function, a byte-compiled
 function, or a subr.  E.g.:
 
-  (js-elisp-wrapper '+)
+  (js-elisp-wrapper '+ t)
     => js-native--+
   (js-native--+ nil '(1 2 3 4))
     => 10
@@ -1876,6 +1876,13 @@ for producing JavaScript host objects that wrap elisp functions."
           `(lambda (this args)
              (apply #',func this args)))
     sym))
+
+(defun js-elisp-lambda (fun)
+  "Takes FUN, a lambda (thisobj args), and makes it callable.
+Returns a JavaScript Function object that calls the lambda."
+  (let ((sym (gensym)))
+    (fset sym fun)
+    (js-builtin-function sym t)))
 
 (defun js-native-function-arity (func)
   "Return an estimated value for the length property for FUNC.
@@ -1925,7 +1932,7 @@ SYM is the symbol bound to the native function to invoke."
 
 ;;; ECMA 15 -- Native ECMAScript Objects
 
-(defun js-create-interpreter (&optional buf)
+(defun js-create-interpreter ()
   "Utility function for bootstrapping a JavaScript interpreter.
 
 It returns a `js-Context' object that should be set as the value
@@ -1945,12 +1952,7 @@ interpreter in BUF."
       (js-init-standard-objects global)
       (setf (js-Object-proto global)
             (js-get-Object-prototype global)))
-    (when buf
-      (save-excursion
-        (set-buffer buf)
-        (if js-current-context
-            (error "A JavaScript runtime already exists in %s" buf))
-        (set (make-local-variable 'js-current-context) context)))
+    (setq js-current-context context)
     context))
 
 (defstruct (js-Emacs (:include js-Object))
@@ -2085,6 +2087,8 @@ populated.  Otherwise a fresh Object will be created."
       (jsfunc "encodeURIComponent" 'js-encodeURIComponent)
       (jsfunc "decodeURIComponent" 'js-decodeURIComponent))
 
+    (js-add-host-objects Global)
+
     Global))
 
 (defun js-parseInt (obj args)
@@ -2147,6 +2151,7 @@ Returns false for non-numbers, +/- Infinity, and NaN."
 (require 'js-native-date)     ; 15.9 -- Date
 (require 'js-native-regexp)   ; 15.10 -- RegExp
 (require 'js-native-error)    ; 15.11 -- Error
+(require 'js-host)
 
 (provide 'js-runtime)
 

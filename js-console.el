@@ -167,7 +167,7 @@ you're planning on doing this in a loop, you should use
 
 (defun js-console-init-interpreter ()
   "Initializes an interpreter instance for the console."
-  (let* ((context (js-create-interpreter (current-buffer)))
+  (let* ((context (js-create-interpreter))
          (global (js-Context-scope context)))
   (js-console-add-helpers global)
   (set (make-local-variable 'js-console-global) global)))
@@ -227,8 +227,9 @@ you're planning on doing this in a loop, you should use
         (insert "\n"))                  ; wait for more input
        ((eq result t)
         (js-console-display-output
-         (js-console-exec
-          js-console-last-parsed-input)))
+         (save-excursion
+           (js-console-exec
+            js-console-last-parsed-input))))
        ((listp result)
         (js-console-handle-error result))
        (t
