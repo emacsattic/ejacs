@@ -98,7 +98,7 @@ FUNOBJ is the String constructor function, and can be omitted."
 
 (defun js-String-fromCharCode (thisobj args)
   "15.5.3.2 -- String.fromCharCode"
-  (mapconcat 'string (mapcar 'js-to-uint16 args) ""))
+  (mapconcat 'string (mapcar 'js-to-number args) ""))
 
 ;; I don't much care for this format, but it seems to be the standard.
 (defun js-String-toSource (s args)
@@ -131,7 +131,7 @@ FUNOBJ is the String constructor function, and can be omitted."
          (len (length target)))
     (if (or (minusp ix) (>= ix len))
         'NaN
-       (aref target ix))))
+       (aref target pos))))
 
 (defun js-String-concat (s args)
   "15.5.4.6 - String.prototype.concat"
