@@ -917,17 +917,25 @@ exceptions."
       (js-Context-result js-current-context))))
 
 (defun js-eval-buffer (buf)
-  (let (context global)
-    (setq global (make-js-Object))
-    (setq context (js-context 'GLOBAL_CODE global))
-    (let ((js-current-context context)  ; buffer-local
-          (js-no-parent-links t))      ; buffer-local
+  "Evaluate JavaScript code in BUF and return the result."
+  (let* ((global (make-js-Object))
+         (context (js-context 'GLOBAL_CODE global))
+         (js-current-context context)  ; buffer-local
+         (js-no-parent-links t)        ; buffer-local
+         exception result)
       (js-init-standard-objects global)
       (save-excursion
         (set-buffer buf)
-        (js-evaluate
-         (buffer-substring-no-properties (point-min)
-                                         (point-max)))))))
+        (setq exception
+              (catch 'js-THROW
+                (progn
+                  (setq result
+                        (js-evaluate
+                         (buffer-substring-no-properties (point-min)
+                                                         (point-max))))))))
+      (js-console-js-to-string
+       (or result
+           (js-Context-result js-current-context)))))
 
 (provide 'js-exec)
 
